@@ -80,6 +80,20 @@ terraform apply
 docker-compose up -d
 ```
 
+## Si tu as déjà importé ta key et que tu as cette erreur : 
+```bash
+InvalidKeyPair.Duplicate: The keypair already exists
+```
+
+Fais ça puis relance le terraform apply
+
+```bash
+aws ec2 delete-key-pair --key-name demo
+terraform import aws_key_pair.default demo
+```
+
+
+
 3. **Accéder à Jupyter Notebook :**
 
 - http://localhost:8888 (Le mot de passe est défini dans le Dockerfile)
@@ -100,7 +114,7 @@ Les ressources Terraform dans infra/.
 
 Les Security Groups AWS sont configurés pour exposer uniquement les ports nécessaires :
 
-![Alt text](docs/map.png?raw=true "Title")
+![Alt text](docs/map.jpg?raw=true "Title")
 
 Les fichiers sensibles comme *.pem, *.tfvars sont exclus du dépôt via .gitignore.
 
