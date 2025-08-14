@@ -100,13 +100,7 @@ Les ressources Terraform dans infra/.
 
 Les Security Groups AWS sont configurés pour exposer uniquement les ports nécessaires :
 
-22 : SSH
-
-9000 : MinIO
-
-8080 : Trino
-
-8181 : DataHub (optionnel)
+![Alt text](docs/map.png?raw=true "Title")
 
 Les fichiers sensibles comme *.pem, *.tfvars sont exclus du dépôt via .gitignore.
 
