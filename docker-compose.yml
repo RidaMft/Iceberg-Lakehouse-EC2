@@ -1,0 +1,142 @@
+version: "3.3"
+
+services:
+  minio:
+    image: minio/minio:latest
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD}
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    volumes:
+      - ./minio-data:/data
+
+  create-bucket:
+    image: minio/mc:latest
+    depends_on:
+      - minio
+    entrypoint: >
+      /bin/sh -c "
+      mc alias set local ${MINIO_ENDPOINT} ${MINIO_ROOT_USER} ${MINIO_ROOT_PASSWORD} && mc mb -p local/${MINIO_BUCKET} || true
+      until (/usr/bin/mc config host add minio ${MINIO_ENDPOINT} ${MINIO_ROOT_USER} ${MINIO_ROOT_PASSWORD}) do echo '...waiting...' && sleep 1; done;
+      /usr/bin/mc rm -r --force minio/warehouse;
+      /usr/bin/mc mb minio/warehouse;
+      /usr/bin/mc policy set public minio/warehouse;
+      tail -f /dev/null
+      "
+
+  zookeeper:
+    image: confluentinc/cp-zookeeper:7.5.4
+    environment:
+      ZOOKEEPER_CLIENT_PORT: 2181
+      ZOOKEEPER_TICK_TIME: 2000
+
+  kafka:
+    image: confluentinc/cp-kafka:7.5.4
+    depends_on:
+      - zookeeper
+    environment:
+      KAFKA_BROKER_ID: ${KAFKA_BROKER_ID}
+      KAFKA_ZOOKEEPER_CONNECT: ${KAFKA_ZK_CONNECT}
+      KAFKA_LISTENERS: PLAINTEXT://0.0.0.0:9092
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
+      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
+
+  schema-registry:
+    image: confluentinc/cp-schema-registry:7.5.4
+    depends_on:
+      - kafka
+    environment:
+      SCHEMA_REGISTRY_HOST_NAME: ${SCHEMA_REGISTRY_HOST_NAME}
+      SCHEMA_REGISTRY_KAFKASTORE_BOOTSTRAP_SERVERS: PLAINTEXT://kafka:9092
+      SCHEMA_REGISTRY_LISTENERS: http://0.0.0.0:8081
+
+  spark:
+    build:
+      context: .
+      dockerfile: Dockerfile.spark
+    container_name: spark
+    ports:
+      - "4040:4040"
+      - "7077:7077"
+    depends_on:
+      - rest
+      - minio
+    environment:
+      SPARK_NO_DAEMONIZE: "yes"
+    command: ["/bin/bash", "-lc", "sleep infinity"]
+
+  jupyter:
+    image: jupyter/pyspark-notebook:latest
+    depends_on:
+      - spark
+      - rest
+      - minio
+    ports:
+      - "8888:8888"
+    volumes:
+      - ./notebooks:/home/jovyan/work
+    environment:
+      JUPYTER_PASSWORD: "password" # Change this to your desired password
+
+
+  debezium:
+    image: debezium/connect:2.7.3.Final
+    depends_on:
+      - kafka
+    ports:
+      - "8083:8083"
+    environment:
+      BOOTSTRAP_SERVERS: kafka:9092
+      GROUP_ID: 1
+      CONFIG_STORAGE_TOPIC: my_connect_configs
+      OFFSET_STORAGE_TOPIC: my_connect_offsets
+      STATUS_STORAGE_TOPIC: my_connect_statuses
+      KEY_CONVERTER: org.apache.kafka.connect.json.JsonConverter
+      VALUE_CONVERTER: org.apache.kafka.connect.json.JsonConverter
+
+  rest:
+    image: tabulario/iceberg-rest
+    container_name: iceberg-rest
+    ports:
+      - 8181:8181
+    environment:
+      - AWS_ACCESS_KEY_ID=${MINIO_ROOT_USER}
+      - AWS_SECRET_ACCESS_KEY=${MINIO_ROOT_PASSWORD}
+      - AWS_REGION=us-east-1
+      - CATALOG_WAREHOUSE=s3://${MINIO_BUCKET}/ 
+      - CATALOG_IO__IMPL=org.apache.iceberg.aws.s3.S3FileIO
+      - CATALOG_S3_ENDPOINT=${MINIO_ENDPOINT}
+
+  trino:
+    image: trinodb/trino:latest
+    container_name: trino
+    environment:
+      - TRINO_USER=admin
+      - TRINO_PASSWORD=admin
+    ports:
+      - 8080:8080
+    depends_on:
+      - rest
+      - minio
+    volumes:
+      - ./trino/iceberg.properties:/etc/trino/catalog/iceberg.properties
+
+  superset:
+      build:
+        context: ./superset
+      container_name: superset
+      environment:
+        - ADMIN_USERNAME=admin
+        - ADMIN_EMAIL=admin@superset.com
+        - ADMIN_PASSWORD=admin
+      ports:
+        - 8088:8088
+
+networks:
+  default:
+    name: iceberg-net

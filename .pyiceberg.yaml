@@ -1,0 +1,4 @@
+catalog:
+  local_datahub:
+    uri: http://localhost:8080/iceberg
+    warehouse: warehouse
