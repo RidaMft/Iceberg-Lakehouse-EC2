@@ -4,6 +4,7 @@ services:
   minio:
     image: minio/minio:latest
     command: server /data --console-address ":9001"
+    container_name: minio
     environment:
       MINIO_ROOT_USER: ${MINIO_ROOT_USER}
       MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD}
@@ -15,6 +16,7 @@ services:
 
   create-bucket:
     image: minio/mc:latest
+    container_name: create-bucket
     depends_on:
       - minio
     entrypoint: >
@@ -27,39 +29,11 @@ services:
       tail -f /dev/null
       "
 
-  zookeeper:
-    image: confluentinc/cp-zookeeper:7.5.4
-    environment:
-      ZOOKEEPER_CLIENT_PORT: 2181
-      ZOOKEEPER_TICK_TIME: 2000
-
-  kafka:
-    image: confluentinc/cp-kafka:7.5.4
-    depends_on:
-      - zookeeper
-    environment:
-      KAFKA_BROKER_ID: ${KAFKA_BROKER_ID}
-      KAFKA_ZOOKEEPER_CONNECT: ${KAFKA_ZK_CONNECT}
-      KAFKA_LISTENERS: PLAINTEXT://0.0.0.0:9092
-      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092
-      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
-      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
-      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
-
-  schema-registry:
-    image: confluentinc/cp-schema-registry:7.5.4
-    depends_on:
-      - kafka
-    environment:
-      SCHEMA_REGISTRY_HOST_NAME: ${SCHEMA_REGISTRY_HOST_NAME}
-      SCHEMA_REGISTRY_KAFKASTORE_BOOTSTRAP_SERVERS: PLAINTEXT://kafka:9092
-      SCHEMA_REGISTRY_LISTENERS: http://0.0.0.0:8081
-
-  spark:
+  spark-master:
     build:
       context: .
       dockerfile: Dockerfile.spark
-    container_name: spark
+    container_name: spark-master
     ports:
       - "4040:4040"
       - "7077:7077"
@@ -68,12 +42,16 @@ services:
       - minio
     environment:
       SPARK_NO_DAEMONIZE: "yes"
-    command: ["/bin/bash", "-lc", "sleep infinity"]
+      SPARK_LOCAL_IP: spark-master
+    command: bin/spark-class org.apache.spark.deploy.master.Master
+ 
+    #command: ["/bin/bash", "-lc", "sleep infinity"]
 
   jupyter:
     image: jupyter/pyspark-notebook:latest
+    container_name: jupyter
     depends_on:
-      - spark
+      - spark-master
       - rest
       - minio
     ports:
@@ -81,23 +59,9 @@ services:
     volumes:
       - ./notebooks:/home/jovyan/work
     environment:
-      JUPYTER_PASSWORD: "password" # Change this to your desired password
-
-
-  debezium:
-    image: debezium/connect:2.7.3.Final
-    depends_on:
-      - kafka
-    ports:
-      - "8083:8083"
-    environment:
-      BOOTSTRAP_SERVERS: kafka:9092
-      GROUP_ID: 1
-      CONFIG_STORAGE_TOPIC: my_connect_configs
-      OFFSET_STORAGE_TOPIC: my_connect_offsets
-      STATUS_STORAGE_TOPIC: my_connect_statuses
-      KEY_CONVERTER: org.apache.kafka.connect.json.JsonConverter
-      VALUE_CONVERTER: org.apache.kafka.connect.json.JsonConverter
+      JUPYTER_TOKEN: ""           # désactive le token
+      JUPYTER_PASSWORD: ""        # désactive le mot de passe
+    command: start-notebook.sh --NotebookApp.token='' --NotebookApp.password=''
 
   rest:
     image: tabulario/iceberg-rest
@@ -126,16 +90,6 @@ services:
     volumes:
       - ./trino/iceberg.properties:/etc/trino/catalog/iceberg.properties
 
-  superset:
-      build:
-        context: ./superset
-      container_name: superset
-      environment:
-        - ADMIN_USERNAME=admin
-        - ADMIN_EMAIL=admin@superset.com
-        - ADMIN_PASSWORD=admin
-      ports:
-        - 8088:8088
 
 networks:
   default:

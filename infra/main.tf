@@ -130,11 +130,11 @@ resource "aws_security_group" "ec2_sg" {
 ##############################
 resource "aws_instance" "ec2" {
   ami             = data.aws_ami.amazon_linux.id
-  instance_type   = "t3.large"
+  instance_type   = "t3.xlarge"
   key_name        = aws_key_pair.default.key_name
   security_groups = [aws_security_group.ec2_sg.name]
   root_block_device {
-    volume_size = 50 # Go, ou plus selon ton besoin
+    volume_size = 100 # Go, ou plus selon ton besoin
     volume_type = "gp3"
   }
 

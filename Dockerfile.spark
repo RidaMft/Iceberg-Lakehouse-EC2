@@ -1,22 +1,50 @@
 FROM bitnami/spark:3.5.1
+
+RUN echo 'restart'
+
 USER root
-RUN apt-get update && apt-get install -y curl && rm -rf /var/lib/apt/lists/*
 
-ENV APACHE_SPARK_MAJOR_VERSION="3.5" \
-    ICEBERG_VERSION="1.9.1" \
-    HADOOP_VERSION="3.3.4" \
-    AWSJAVASDK_VERSION="1.12.262" \
-    SPARK_HOME="/opt/bitnami/spark"
+# Add Dependencies for PySpark
+RUN apt-get update && apt-get install -y curl vim wget software-properties-common ssh net-tools ca-certificates python3-pip python3-numpy python3-matplotlib python3-scipy python3-pandas
 
-# Guava & drivers DB
-RUN curl -L https://repo1.maven.org/maven2/com/google/guava/guava/32.0.1-jre/guava-32.0.1-jre.jar -o ${SPARK_HOME}/jars/guava-32.0.1-jre.jar \
- && curl -L https://jdbc.postgresql.org/download/postgresql-42.2.24.jar -o ${SPARK_HOME}/jars/postgresql-42.2.24.jar \
- && curl -L https://repo1.maven.org/maven2/com/microsoft/sqlserver/mssql-jdbc/12.6.1.jre8/mssql-jdbc-12.6.1.jre8.jar -o ${SPARK_HOME}/jars/mssql-jdbc-12.6.1.jre8.jar
+#RUN update-alternatives --install "/usr/bin/python" "python" "$(which python3)" 1
 
-# Iceberg + AWS bundle
-RUN curl -L https://repo1.maven.org/maven2/org/apache/iceberg/iceberg-spark-runtime-${APACHE_SPARK_MAJOR_VERSION}_2.12/${ICEBERG_VERSION}/iceberg-spark-runtime-${APACHE_SPARK_MAJOR_VERSION}_2.12-${ICEBERG_VERSION}.jar -o ${SPARK_HOME}/jars/iceberg-spark-runtime-${APACHE_SPARK_MAJOR_VERSION}_2.12-${ICEBERG_VERSION}.jar \
- && curl -L https://repo1.maven.org/maven2/com/amazonaws/aws-java-sdk-bundle/${AWSJAVASDK_VERSION}/aws-java-sdk-bundle-${AWSJAVASDK_VERSION}.jar -o ${SPARK_HOME}/jars/aws-java-sdk-bundle-${AWSJAVASDK_VERSION}.jar \
- && curl -L https://repo1.maven.org/maven2/org/apache/hadoop/hadoop-aws/${HADOOP_VERSION}/hadoop-aws-${HADOOP_VERSION}.jar -o ${SPARK_HOME}/jars/hadoop-aws-${HADOOP_VERSION}.jar \
- && curl -L https://repo1.maven.org/maven2/org/apache/iceberg/iceberg-aws-bundle/${ICEBERG_VERSION}/iceberg-aws-bundle-${ICEBERG_VERSION}.jar -o ${SPARK_HOME}/jars/iceberg-aws-bundle-${ICEBERG_VERSION}.jar
+# Fix the value of PYTHONHASHSEED
+# Note: this is needed when you use Python 3.3 or greater
+ENV PYTHONHASHSEED=1
 
+ENV APACHE_SPARK_VERSION="3.5.0"
+ENV APACHE_SPARK_MAJOR_VERSION="3.5"
+ENV HADOOP_VERSION="3.3.4"
+ENV ICEBERG_VERSION="1.9.2"
+ENV SPARK_USER=0
+ENV SPARK_HOME="/opt/bitnami/spark"
+
+
+##################################
+# Package                        #
+##################################
+USER root
+RUN install_packages curl
 USER 1001
+
+RUN curl https://repo1.maven.org/maven2/com/google/guava/guava/32.0.1-jre/guava-32.0.1-jre.jar --output ${SPARK_HOME}/jars/guava-32.0.1-jre.jar
+RUN curl https://jdbc.postgresql.org/download/postgresql-42.2.24.jar --output ${SPARK_HOME}/jars/postgresql-42.2.24.jar 
+RUN curl https://repo1.maven.org/maven2/com/microsoft/sqlserver/mssql-jdbc/12.6.1.jre8/mssql-jdbc-12.6.1.jre8.jar --output ${SPARK_HOME}/jars/mssql-jdbc-12.6.1.jre8.jar
+
+# Download Iceberg
+RUN curl https://repo1.maven.org/maven2/org/apache/iceberg/iceberg-spark-runtime-${APACHE_SPARK_MAJOR_VERSION}_2.12/${ICEBERG_VERSION}/iceberg-spark-runtime-${APACHE_SPARK_MAJOR_VERSION}_2.12-${ICEBERG_VERSION}.jar --output ${SPARK_HOME}/jars/iceberg-spark-runtime-${APACHE_SPARK_MAJOR_VERSION}_2.12-${ICEBERG_VERSION}.jar
+
+# Download Java AWS SDK
+ENV AWSJAVASDK_VERSION=1.12.262
+RUN curl https://repo1.maven.org/maven2/com/amazonaws/aws-java-sdk-bundle/${AWSJAVASDK_VERSION}/aws-java-sdk-bundle-${AWSJAVASDK_VERSION}.jar --output ${SPARK_HOME}/jars/aws-java-sdk-bundle-${AWSJAVASDK_VERSION}.jar
+
+# Download Hadoop-AWS for org.apache.hadoop.fs.s3a.S3AFileSystem
+RUN curl https://repo1.maven.org/maven2/org/apache/hadoop/hadoop-aws/${HADOOP_VERSION}/hadoop-aws-${HADOOP_VERSION}.jar --output ${SPARK_HOME}/jars/hadoop-aws-${HADOOP_VERSION}.jar
+
+# Download AWS Iceberg Bundle
+RUN curl https://repo1.maven.org/maven2/org/apache/iceberg/iceberg-aws-bundle/${ICEBERG_VERSION}/iceberg-aws-bundle-${ICEBERG_VERSION}.jar --output ${SPARK_HOME}/jars/iceberg-aws-bundle-${ICEBERG_VERSION}.jar
+
+ARG spark_uid=0
+
+USER ${spark_uid}
