@@ -2,11 +2,14 @@ FROM bitnami/spark:3.5.2
 
 USER root
 
-# Dépendances utiles
+# Dépendances utiles et Python + pip
 RUN apt-get update && apt-get install -y \
     curl wget vim net-tools ca-certificates python3-pip python3-numpy \
     python3-matplotlib python3-scipy python3-pandas \
     && rm -rf /var/lib/apt/lists/*
+
+# Installer Jupyter et PySpark pour Python
+RUN pip3 install --no-cache-dir notebook findspark pyspark
 
 # Variables versions
 ENV APACHE_SPARK_MAJOR_VERSION=3.5 \
@@ -36,5 +39,12 @@ RUN curl -L https://repo1.maven.org/maven2/com/google/guava/guava/32.0.1-jre/gua
 
 # Ajouter les JARs au CLASSPATH
 ENV SPARK_CLASSPATH="${SPARK_HOME}/jars/*:$SPARK_CLASSPATH"
+
+# Créer le dossier de travail Jupyter
+RUN mkdir -p /home/jupyter/work
+WORKDIR /home/jupyter/work
+
+# Lancer Jupyter Notebook par défaut
+CMD ["jupyter", "notebook", "--ip=0.0.0.0", "--no-browser", "--allow-root", "--NotebookApp.token=''", "--NotebookApp.password=''"]
 
 USER 1001

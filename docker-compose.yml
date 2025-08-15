@@ -8,6 +8,7 @@ services:
     environment:
       MINIO_ROOT_USER: ${MINIO_ROOT_USER}
       MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD}
+      AWS_REGION: eu-west-1
     ports:
       - "9000:9000"
       - "9001:9001"
@@ -24,7 +25,7 @@ services:
     environment:
       MINIO_ROOT_USER: ${MINIO_ROOT_USER}
       MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD}
-      AWS_REGION: us-west-1
+      AWS_REGION: eu-west-1
     depends_on:
       - minio
     entrypoint: >
@@ -34,27 +35,34 @@ services:
       /usr/bin/mc rm -r --force minio/warehouse;
       /usr/bin/mc mb minio/warehouse;
       /usr/bin/mc anonymous set public minio/warehouse;
+      /usr/bin/mc rm -r --force minio/raw;
+      /usr/bin/mc mb minio/raw;
+      /usr/bin/mc anonymous set public minio/raw;
       tail -f /dev/null
       "
     networks:
       iceberg_net:
 
-  rest:
-    image: apache/iceberg-rest-fixture
-    container_name: iceberg-rest
-    ports:
-      - 8181:8181
-    environment:
-      AWS_ACCESS_KEY_ID: ${MINIO_ROOT_USER}
-      AWS_SECRET_ACCESS_KEY: ${MINIO_ROOT_PASSWORD}
-      AWS_REGION: us-east-1
-      CATALOG_WAREHOUSE: s3://${MINIO_BUCKET}/
-      CATALOG_IO__IMPL: org.apache.iceberg.aws.s3.S3FileIO
-      CATALOG_S3_ENDPOINT: ${MINIO_ENDPOINT}
+  postgres:
+    image: postgres:latest
+    container_name: postgres
     networks:
-      iceberg_net:
-        aliases:
-          - rest
+      - iceberg_net
+    environment:
+      POSTGRES_DB: postgres
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+      - ./db-scripts:/docker-entrypoint-initdb.d  # <--- scripts auto-exécutés
+
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready" ]
+      interval: 5s
+      timeout: 5s
+      retries: 5
 
   spark-master:
     build:
@@ -64,9 +72,12 @@ services:
     ports:
       - "9090:9090"
       - "7077:7077"
+      - "8888:8888"
     depends_on:
       - rest
       - minio
+    volumes:
+      - ./notebooks:/home/jupyter/work
     networks:
       iceberg_net:
         aliases:
@@ -74,38 +85,6 @@ services:
     environment:
       SPARK_MODE: master
       SPARK_MASTER_WEBUI_PORT: 9090
-
-  spark-worker-1:
-    build:
-      context: .
-      dockerfile: Dockerfile.spark
-    container_name: spark-worker-1
-    depends_on:
-      - spark-master
-    networks:
-      iceberg_net:
-    environment:
-      SPARK_MODE: worker
-      SPARK_MASTER_URL: spark://spark-master:7077
-
-  jupyter:
-    image: jupyter/pyspark-notebook:latest
-    container_name: jupyter
-    depends_on:
-      - spark-master
-    ports:
-      - "8888:8888"
-    volumes:
-      - ./notebooks:/home/jovyan/work
-    command: start-notebook.sh --NotebookApp.token='' --NotebookApp.password=''
-    environment:
-      JUPYTER_TOKEN: ""
-      JUPYTER_PASSWORD: ""
-      PYSPARK_SUBMIT_ARGS: "--master spark://spark-master:7077 --jars /opt/bitnami/spark/jars/* pyspark-shell"
-    networks:
-      iceberg_net:
-        aliases:
-          - jupyter
 
   trino:
     image: trinodb/trino:latest
@@ -125,6 +104,36 @@ services:
         aliases:
           - trino
 
+  rest:
+    image: rmeftah/iceberg-rest-catalog:latest
+    container_name: rest
+    restart: always
+    environment:
+      CATALOG_NAME: WAREHOUSE
+      WAREHOUSE_LOCATION: s3a://WAREHOUSE/wh
+      IMPL: org.apache.iceberg.JDBC_JdbcCatalog
+      REST_PORT: 8181
+      IO_IMPL: org.apache.iceberg.aws.s3.S3FileIO
+      S3_ENDPOINT: http://minio:9000
+      URI: jdbc:postgresql://postgres:5432/warehouse
+      JDBC_USER: postgres
+      JDBC_PASSWORD: postgres
+      AWS_ACCESS_KEY_ID: minioadmin
+      AWS_SECRET_ACCESS_KEY: minioadmin
+      AWS_REGION: us-east-1
+    ports:
+      - "8181:8181"
+    depends_on:
+      - postgres
+      - minio
+    networks:
+      - iceberg_net
+
 networks:
   iceberg_net:
     driver: bridge
+
+volumes:
+  postgres-data:
+
+
