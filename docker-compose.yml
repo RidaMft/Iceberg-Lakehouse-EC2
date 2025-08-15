@@ -11,23 +11,50 @@ services:
     ports:
       - "9000:9000"
       - "9001:9001"
+    networks:
+      iceberg_net:
+        aliases:
+          - warehouse.minio
     volumes:
       - ./minio-data:/data
 
   create-bucket:
     image: minio/mc:latest
     container_name: create-bucket
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD}
+      AWS_REGION: us-west-1
     depends_on:
       - minio
     entrypoint: >
       /bin/sh -c "
-      mc alias set local ${MINIO_ENDPOINT} ${MINIO_ROOT_USER} ${MINIO_ROOT_PASSWORD} && mc mb -p local/${MINIO_BUCKET} || true
-      until (/usr/bin/mc config host add minio ${MINIO_ENDPOINT} ${MINIO_ROOT_USER} ${MINIO_ROOT_PASSWORD}) do echo '...waiting...' && sleep 1; done;
+      until (/usr/bin/mc alias set minio http://minio:9000 ${MINIO_ROOT_USER} ${MINIO_ROOT_PASSWORD}) \
+        do echo '...waiting...' && sleep 1; done;
       /usr/bin/mc rm -r --force minio/warehouse;
       /usr/bin/mc mb minio/warehouse;
-      /usr/bin/mc policy set public minio/warehouse;
+      /usr/bin/mc anonymous set public minio/warehouse;
       tail -f /dev/null
       "
+    networks:
+      iceberg_net:
+
+  rest:
+    image: apache/iceberg-rest-fixture
+    container_name: iceberg-rest
+    ports:
+      - 8181:8181
+    environment:
+      AWS_ACCESS_KEY_ID: ${MINIO_ROOT_USER}
+      AWS_SECRET_ACCESS_KEY: ${MINIO_ROOT_PASSWORD}
+      AWS_REGION: us-east-1
+      CATALOG_WAREHOUSE: s3://${MINIO_BUCKET}/
+      CATALOG_IO__IMPL: org.apache.iceberg.aws.s3.S3FileIO
+      CATALOG_S3_ENDPOINT: ${MINIO_ENDPOINT}
+    networks:
+      iceberg_net:
+        aliases:
+          - rest
 
   spark-master:
     build:
@@ -35,53 +62,57 @@ services:
       dockerfile: Dockerfile.spark
     container_name: spark-master
     ports:
-      - "4040:4040"
+      - "9090:9090"
       - "7077:7077"
     depends_on:
       - rest
       - minio
+    networks:
+      iceberg_net:
+        aliases:
+          - spark-master
     environment:
-      SPARK_NO_DAEMONIZE: "yes"
-      SPARK_LOCAL_IP: spark-master
-    command: bin/spark-class org.apache.spark.deploy.master.Master
- 
-    #command: ["/bin/bash", "-lc", "sleep infinity"]
+      SPARK_MODE: master
+      SPARK_MASTER_WEBUI_PORT: 9090
+
+  spark-worker-1:
+    build:
+      context: .
+      dockerfile: Dockerfile.spark
+    container_name: spark-worker-1
+    depends_on:
+      - spark-master
+    networks:
+      iceberg_net:
+    environment:
+      SPARK_MODE: worker
+      SPARK_MASTER_URL: spark://spark-master:7077
 
   jupyter:
     image: jupyter/pyspark-notebook:latest
     container_name: jupyter
     depends_on:
       - spark-master
-      - rest
-      - minio
     ports:
       - "8888:8888"
     volumes:
       - ./notebooks:/home/jovyan/work
-    environment:
-      JUPYTER_TOKEN: ""           # désactive le token
-      JUPYTER_PASSWORD: ""        # désactive le mot de passe
     command: start-notebook.sh --NotebookApp.token='' --NotebookApp.password=''
-
-  rest:
-    image: tabulario/iceberg-rest
-    container_name: iceberg-rest
-    ports:
-      - 8181:8181
     environment:
-      - AWS_ACCESS_KEY_ID=${MINIO_ROOT_USER}
-      - AWS_SECRET_ACCESS_KEY=${MINIO_ROOT_PASSWORD}
-      - AWS_REGION=us-east-1
-      - CATALOG_WAREHOUSE=s3://${MINIO_BUCKET}/ 
-      - CATALOG_IO__IMPL=org.apache.iceberg.aws.s3.S3FileIO
-      - CATALOG_S3_ENDPOINT=${MINIO_ENDPOINT}
+      JUPYTER_TOKEN: ""
+      JUPYTER_PASSWORD: ""
+      PYSPARK_SUBMIT_ARGS: "--master spark://spark-master:7077 --jars /opt/bitnami/spark/jars/* pyspark-shell"
+    networks:
+      iceberg_net:
+        aliases:
+          - jupyter
 
   trino:
     image: trinodb/trino:latest
     container_name: trino
     environment:
-      - TRINO_USER=admin
-      - TRINO_PASSWORD=admin
+      TRINO_USER: admin
+      TRINO_PASSWORD: admin
     ports:
       - 8080:8080
     depends_on:
@@ -89,8 +120,11 @@ services:
       - minio
     volumes:
       - ./trino/iceberg.properties:/etc/trino/catalog/iceberg.properties
-
+    networks:
+      iceberg_net:
+        aliases:
+          - trino
 
 networks:
-  default:
-    name: iceberg-net
+  iceberg_net:
+    driver: bridge

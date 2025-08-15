@@ -94,8 +94,8 @@ resource "aws_security_group" "ec2_sg" {
 
   ingress {
     description = "Spark UI"
-    from_port   = 4040
-    to_port     = 4040
+    from_port   = 9090
+    to_port     = 9090
     protocol    = "tcp"
     cidr_blocks = ["0.0.0.0/0"]
   }
@@ -112,6 +112,14 @@ resource "aws_security_group" "ec2_sg" {
     description = "Debezium"
     from_port   = 8083
     to_port     = 8083
+    protocol    = "tcp"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+
+  ingress {
+    description = "Airbyte"
+    from_port   = 8000
+    to_port     = 8000
     protocol    = "tcp"
     cidr_blocks = ["0.0.0.0/0"]
   }
@@ -136,6 +144,10 @@ resource "aws_instance" "ec2" {
   root_block_device {
     volume_size = 100 # Go, ou plus selon ton besoin
     volume_type = "gp3"
+  }
+  tags = {
+    Name = "ec2-iceberg"
+    Environment = "demo"
   }
 
   ##############################
@@ -253,7 +265,30 @@ resource "aws_instance" "ec2" {
       host        = self.public_ip
     }
   }
-  tags = {
-    Name = "iceberg-ec2"
+}
+
+##############################
+# 5️⃣ Installation Airbyte et récupération des credentials
+##############################
+resource "null_resource" "airbyte_setup" {
+  depends_on = [aws_instance.ec2]
+
+  provisioner "remote-exec" {
+    inline = [
+      "curl -LsfS https://get.airbyte.com | bash",
+      "abctl local install --port 8000 --low-resource-mode --insecure-cookies",
+      "abctl local credentials --json > /home/ec2-user/airbyte_credentials.json"
+    ]
+
+    connection {
+      type        = "ssh"
+      user        = "ec2-user"
+      private_key = file("~/.ssh/${var.key_name}")
+      host        = aws_instance.ec2.public_ip
+    }
+  }
+
+  provisioner "local-exec" {
+    command = "scp -o StrictHostKeyChecking=no -i ~/.ssh/${var.key_name} ec2-user@${aws_instance.ec2.public_ip}:/home/ec2-user/airbyte_credentials.json ./airbyte_credentials.json"
   }
 }

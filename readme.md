@@ -98,7 +98,7 @@ terraform import aws_key_pair.default demo
 
 - http://localhost:8888 (Le mot de passe est défini dans le Dockerfile)
 
-## 📚 Utilisation
+## 📚 **Utilisation**
 
 Les notebooks Spark se trouvent dans notebooks/ :
 
@@ -118,9 +118,22 @@ Les Security Groups AWS sont configurés pour exposer uniquement les ports néce
 
 Les fichiers sensibles comme *.pem, *.tfvars sont exclus du dépôt via .gitignore.
 
-## 📈 Avantages
+## 📈 **Avantages**
 
 - Environnement reproductible pour tests et développement.
 - Possibilité de scaler Spark et Trino facilement.
 - Isolation complète grâce aux conteneurs Docker.
 - Compatible avec AWS et stockage S3 local via MinIO.
+
+## 📎 **Quick Reference Commands**
+-------------------------------
+
+| **Component** | **Command** |
+| --- | --- |
+| **Start Services** | `docker-compose up --build -d` |
+| **Stop Services** | `docker-compose down` |
+| **View Running Containers** | `docker ps` |
+| **Check Logs** | `docker-compose logs -f` |
+| **Rebuild Containers** | `docker-compose up --build --force-recreate -d` |
+
+* * * * *
