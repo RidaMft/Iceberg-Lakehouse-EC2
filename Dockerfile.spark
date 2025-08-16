@@ -15,6 +15,7 @@ RUN pip3 install --no-cache-dir notebook findspark pyspark
 ENV APACHE_SPARK_MAJOR_VERSION=3.5 \
     HADOOP_VERSION=3.3.4 \
     ICEBERG_VERSION=1.9.2 \
+    #ICEBERG_VERSION=1.5.0 \
     AWSJAVASDK_VERSION=2.20.18 \
     SPARK_HOME=/opt/bitnami/spark
 
