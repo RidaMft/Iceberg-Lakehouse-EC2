@@ -102,7 +102,7 @@ resource "aws_instance" "ec2" {
   # Copier le dossier db-scripts
   ##############################
   provisioner "file" {
-    source      = "../rest-catalog"
+    source      = "../db-scripts"
     destination = "/home/ec2-user/db-scripts"
 
     connection {
@@ -112,7 +112,7 @@ resource "aws_instance" "ec2" {
       host        = self.public_ip
     }
   }
-  
+
   ##############################
   # Installation Docker & Docker Compose + lancement containers
   ##############################
