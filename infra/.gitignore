@@ -402,4 +402,29 @@ $RECYCLE.BIN/
 # Windows shortcuts
 *.lnk
 
+
+
+# Ignore CLI configuration files
+.terraformrc
+terraform.rc
+# Terraform files to ignore
+*.tfstate
+*.tfstate.*
+.terraform/
+.terraform.lock.hcl
+# Ignore Terraform workspace files
+terraform.tfstate.d/    
+# Ignore Terraform plan files
+*.tfplan
+# Ignore Terraform variable files
+*.tfvars
+*.tfvars.json
+# Ignore Terraform module cache
+.terraform/modules/
+# Ignore Terraform provider cache
+.terraform/providers/
+# Ignore Terraform workspace files
+terraform.tfstate.d/
+# Ignore Terraform lock files
+.terraform.lock.hcl
 # End of https://www.toptal.com/developers/gitignore/api/terraform,python,spark,macos,windows,linux,go
