@@ -44,7 +44,12 @@ ENV SPARK_CLASSPATH="${SPARK_HOME}/jars/*:$SPARK_CLASSPATH"
 RUN mkdir -p /home/jupyter/work
 WORKDIR /home/jupyter/work
 
+COPY spark/entrypoint.sh /entrypoint.sh
+RUN chmod +x /entrypoint.sh
+ENTRYPOINT ["/entrypoint.sh"]
+
+
 # Lancer Jupyter Notebook par défaut
-CMD ["jupyter", "notebook", "--ip=0.0.0.0", "--no-browser", "--allow-root", "--NotebookApp.token=''", "--NotebookApp.password=''"]
+#CMD ["jupyter", "notebook", "--ip=0.0.0.0", "--no-browser", "--allow-root", "--NotebookApp.token=''", "--NotebookApp.password=''"]
 
 USER 1001
