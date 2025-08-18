@@ -99,7 +99,6 @@ docker-compose up -d
 
 ### 🔬 Notebooks
 
-- `notebooks/Spark.ipynb` : introduction à Spark
 - `notebooks/SparkSQL.ipynb` : requêtes SQL sur Iceberg
 
 ### ⚙️ Configuration
