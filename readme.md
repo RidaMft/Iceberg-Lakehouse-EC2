@@ -1,139 +1,153 @@
-# Lakehouse Project
+Voici une version restructurée et plus esthétique de ton `README.md`, avec une meilleure hiérarchisation, des icônes, des sections claires et une mise en page plus fluide :
 
-## 🌟 Objectif du projet
+# 🏞️ Lakehouse Project
 
-Ce projet met en place un **Lakehouse** complet pour le traitement et l'analyse de données à grande échelle, en utilisant :  
+## 🌟 Objectif
 
-- **Apache Spark** pour le traitement distribué.  
-- **Apache Iceberg** comme format de table transactionnel sur le lac de données.  
-- **Trino** pour les requêtes SQL interactives sur les données.  
-- **Apache Superset** pour la visualisation et le reporting BI.  
-- **Terraform** pour provisionner l’infrastructure sur AWS.  
-- **MinIO** comme stockage S3 compatible local/cloud.  
-- **Docker & Docker Compose** pour orchestrer facilement les services.
+Ce projet met en place un **Lakehouse** complet pour le traitement et l’analyse de données à grande échelle, en combinant :
 
-L’objectif est de fournir un environnement **réproducible**, permettant de tester et déployer des pipelines data de manière modulaire et scalable.
+- ⚡ **Apache Spark** : traitement distribué
+- 🧊 **Apache Iceberg** : format de table transactionnel
+- 🔍 **Trino** : moteur SQL interactif
+- 📊 **Apache Superset** : visualisation et reporting BI
+- ☁️ **MinIO** : stockage S3 compatible
+- 🐳 **Docker & Docker Compose** : orchestration locale
+- 🌐 **Terraform** : provisionnement AWS
+
+🎯 L’objectif est de fournir un environnement **modulaire, scalable et reproductible** pour tester et déployer des pipelines data.
 
 ---
 
-## 🏗 Architecture générale
+## 🏗️ Architecture
 
-Voici un schéma simplifié de l’architecture :
+```text
++-------------------+       +-------------------+
+| Jupyter Notebook  | <---> |      Spark        |
++-------------------+       +-------------------+
+                                  |
+                                  v
+                          +-------------------+
+                          |     Iceberg       |
+                          +-------------------+
+                                  |
+                                  v
+                          +-------------------+
+                          |      Trino        |
+                          +-------------------+
+                                  |
+                                  v
+                          +-------------------+
+                          |     Superset      |
+                          +-------------------+
 
-     +-------------------+
-     |  Jupyter Notebook |
-     +---------+---------+
-               |
-               v
-     +-------------------+
-     |       Spark       |
-     | (Docker / Custom)|
-     +---------+---------+
-               |
-               v
-     +-------------------+
-     |      Iceberg      |
-     |     (Tables)      |
-     +---------+---------+
-               |
-               v
-     +-------------------+
-     |       Trino       |
-     |  (Query Engine)   |
-     +-------------------+
-
-               |
-               v
-     +-------------------+
-     |      Superset     |
-     |     (Dashboard)   |
-     +-------------------+
-
-     +-------------------+
-     |       MinIO       |
-     | (S3 Storage)      |
-     +-------------------+
-
-
++-------------------+
+|      MinIO        |
++-------------------+
+```
 
 ---
 
 ## ⚙️ Prérequis
-- **Docker** et **Docker Compose**
-- **Terraform** ≥ 1.5
-- **AWS CLI** configuré avec un profil ayant accès à VPC, EC2 et Security Groups
-- **Python 3.10+** pour les notebooks
+
+- Docker & Docker Compose
+- Terraform ≥ 1.5
+- AWS CLI configuré
+- Python ≥ 3.10
 
 ---
 
-## 🚀 Installation et lancement
+## 🚀 Installation
 
-1. **Déployer l’infrastructure :**
+### 1. Déploiement de l’infrastructure AWS
+
 ```bash
 terraform init
 terraform apply
 ```
 
-2. **Démarrer les services Docker localement :**
-
-```bash
-docker-compose up -d
-```
-
-## Si tu as déjà importé ta key et que tu as cette erreur : 
+> 💡 Si tu rencontres l’erreur suivante :
 ```bash
 InvalidKeyPair.Duplicate: The keypair already exists
 ```
-
-Fais ça puis relance le terraform apply
+Exécute :
 
 ```bash
 aws ec2 delete-key-pair --key-name demo
 terraform import aws_key_pair.default demo
 ```
 
+---
 
+### 2. Lancement des services Docker
 
-3. **Accéder à Jupyter Notebook :**
+```bash
+docker-compose up -d
+```
 
-- http://localhost:8888 (Le mot de passe est défini dans le Dockerfile)
+---
 
-## 📚 **Utilisation**
+### 3. Accès aux interfaces
 
-Les notebooks Spark se trouvent dans notebooks/ :
+- 📓 **Jupyter Notebook** : http://localhost:8888
+- 📊 **Superset Dashboard** : http://localhost:8088
+  - **Username** : `admin`
+  - **Password** : `admin`
 
-Spark.ipynb : introduction et tests Spark
+---
 
-SparkSQL.ipynb : exemples SQL sur Iceberg via Spark
+## 📚 Utilisation
 
-Les configurations Trino et Iceberg sont dans trino/.
+### 🔬 Notebooks
 
-Les ressources Terraform dans infra/.
+- `notebooks/Spark.ipynb` : introduction à Spark
+- `notebooks/SparkSQL.ipynb` : requêtes SQL sur Iceberg
 
-🔒 Sécurité
+### ⚙️ Configuration
 
-Les Security Groups AWS sont configurés pour exposer uniquement les ports nécessaires :
+- `trino/iceberg.properties` : config Trino
+- `infra/` : ressources Terraform
 
-![Alt text](docs/map.jpg?raw=true "Title")
+### 🔗 Connexion Superset
 
-Les fichiers sensibles comme *.pem, *.tfvars sont exclus du dépôt via .gitignore.
+- **SQLAlchemy URI** :
 
-## 📈 **Avantages**
+```bash
+trino://trino@trino:8080/iceberg/
+```
 
-- Environnement reproductible pour tests et développement.
-- Possibilité de scaler Spark et Trino facilement.
-- Isolation complète grâce aux conteneurs Docker.
-- Compatible avec AWS et stockage S3 local via MinIO.
+- **Ajout dans Superset** :
+  1. Ouvre http://localhost:8088
+  2. Va dans **Data → Databases → +**
+  3. Colle l’URI ci-dessus
 
-## 📎 **Quick Reference Commands**
--------------------------------
+---
 
-| **Component** | **Command** |
-| --- | --- |
-| **Start Services** | `docker-compose up --build -d` |
-| **Stop Services** | `docker-compose down` |
-| **View Running Containers** | `docker ps` |
-| **Check Logs** | `docker-compose logs -f` |
-| **Rebuild Containers** | `docker-compose up --build --force-recreate -d` |
+## 🔒 Sécurité
 
-* * * * *
+- Les **Security Groups AWS** exposent uniquement les ports nécessaires.
+- Les fichiers sensibles (`*.pem`, `*.tfvars`) sont exclus via `.gitignore`.
+
+!Architecture réseau
+
+---
+
+## 📈 Avantages
+
+- Environnement reproductible
+- Scalable avec Spark & Trino
+- Isolation via Docker
+- Compatible AWS & S3 local
+
+---
+
+## 📎 Commandes utiles
+
+| 📦 Composant        | 🛠️ Commande                                      |
+|---------------------|--------------------------------------------------|
+| Démarrer les services | `docker-compose up --build -d`                |
+| Arrêter les services  | `docker-compose down`                         |
+| Voir les conteneurs   | `docker ps`                                   |
+| Logs en direct        | `docker-compose logs -f`                      |
+| Rebuild complet       | `docker-compose up --build --force-recreate -d` |
+
+---
