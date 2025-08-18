@@ -1,6 +1,3 @@
-Voici le contenu complet du `README.md` restructuré, incluant la nouvelle section **Fonctionnalités à venir** :
-
----
 
 # 🏞️ Lakehouse Project
 
