@@ -129,6 +129,21 @@ resource "aws_instance" "ec2" {
   }
 
   ##############################
+  # Copier le dossier superset/
+  ##############################
+  provisioner "file" {
+    source      = "../superset"
+    destination = "/home/ec2-user/superset"
+
+    connection {
+      type        = "ssh"
+      user        = "ec2-user"
+      private_key = file("~/.ssh/${var.key_name}")
+      host        = self.public_ip
+    }
+  }
+
+  ##############################
   # Installation Docker & Docker Compose + lancement containers
   ##############################
   provisioner "remote-exec" {
