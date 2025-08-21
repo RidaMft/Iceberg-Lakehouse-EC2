@@ -1,17 +1,11 @@
-##############################
-# Clé SSH pour accéder à l'EC2
-##############################
-resource "aws_key_pair" "default" {
-  key_name   = var.key_name
-  public_key = file("~/.ssh/${var.key_name}.pub")
-}
+
 
 ##############################
 # Création de l'instance EC2
 ##############################
-resource "aws_instance" "ec2" {
+resource "aws_instance" "iceberg" {
   ami             = data.aws_ami.amazon_linux.id
-  instance_type   = "t3.xlarge"
+  instance_type   = "t3a.xlarge"
   key_name        = aws_key_pair.default.key_name
   security_groups = [aws_security_group.ec2_sg.name]
   root_block_device {
@@ -24,11 +18,11 @@ resource "aws_instance" "ec2" {
   }
 
   ##############################
-  # Copier docker-compose.yml
+  # Copier docker-compose.yaml
   ##############################
   provisioner "file" {
-    source      = "../docker-compose.yml"
-    destination = "/home/ec2-user/docker-compose.yml"
+    source      = "../docker-compose.yaml"
+    destination = "/home/ec2-user/docker-compose.yaml"
 
     connection {
       type        = "ssh"
@@ -37,6 +31,37 @@ resource "aws_instance" "ec2" {
       host        = self.public_ip
     }
   }
+
+  ##############################
+  # Copier docker-compose.superset.yaml
+  ##############################
+  provisioner "file" {
+    source      = "../docker-compose.superset.yaml"
+    destination = "/home/ec2-user/docker-compose.superset.yaml"
+
+    connection {
+      type        = "ssh"
+      user        = "ec2-user"
+      private_key = file("~/.ssh/${var.key_name}")
+      host        = self.public_ip
+    }
+  }
+
+  ##############################
+  # Copier docker-compose.dbeaver.yaml
+  ##############################
+  provisioner "file" {
+    source      = "../docker-compose.dbeaver.yaml"
+    destination = "/home/ec2-user/docker-compose.dbeaver.yaml"
+
+    connection {
+      type        = "ssh"
+      user        = "ec2-user"
+      private_key = file("~/.ssh/${var.key_name}")
+      host        = self.public_ip
+    }
+  }
+
 
   ##############################
   # Copier le fichier .env
@@ -53,20 +78,6 @@ resource "aws_instance" "ec2" {
     }
   }
 
-  ##############################
-  # Copier le fichier Dockerfile.spark
-  ##############################
-  provisioner "file" {
-    source      = "../Dockerfile.spark"
-    destination = "/home/ec2-user/Dockerfile.spark"
-
-    connection {
-      type        = "ssh"
-      user        = "ec2-user"
-      private_key = file("~/.ssh/${var.key_name}")
-      host        = self.public_ip
-    }
-  }
 
   ##############################
   # Copier le dossier trino/
@@ -143,6 +154,22 @@ resource "aws_instance" "ec2" {
     }
   }
 
+  
+  ##############################
+  # Copier docker-compose.openmetadata.yaml
+  ##############################
+  provisioner "file" {
+    source      = "../docker-compose.openmetadata.yaml"
+    destination = "/home/ec2-user/docker-compose.openmetadata.yaml"
+
+    connection {
+      type        = "ssh"
+      user        = "ec2-user"
+      private_key = file("~/.ssh/${var.key_name}")
+      host        = self.public_ip
+    }
+  }
+
   ##############################
   # Installation Docker & Docker Compose + lancement containers
   ##############################
@@ -170,8 +197,9 @@ resource "aws_instance" "ec2" {
       "docker-compose --version",
 
       # 5️⃣ Démarrage des containers
-      "sudo /usr/local/bin/docker-compose build --progress=plain",
-      "sudo /usr/local/bin/docker-compose -f /home/ec2-user/docker-compose.yml --env-file /home/ec2-user/.env up -d"
+      "sudo /usr/local/bin/docker-compose build ", #--progress=plain
+      # Lancement de docker-compose pour OpenMetadata
+      "sudo /usr/local/bin/docker-compose -f /home/ec2-user/docker-compose.yaml -f /home/ec2-user/docker-compose.dbeaver.yaml --env-file /home/ec2-user/.env up -d"
     ]
 
     connection {

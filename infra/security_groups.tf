@@ -103,6 +103,22 @@ resource "aws_security_group" "ec2_sg" {
     cidr_blocks = ["0.0.0.0/0"]
   }
 
+  ingress {
+    description = "Hue"
+    from_port   = 8881
+    to_port     = 8881
+    protocol    = "tcp"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+
+  ingress {
+    description = "OpenMetadata"
+    from_port   = 8585
+    to_port     = 8585
+    protocol    = "tcp"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+
   # Autoriser toutes les connexions sortantes
   egress {
     from_port   = 0

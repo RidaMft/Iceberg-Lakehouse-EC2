@@ -13,8 +13,6 @@ data "aws_ami" "amazon_linux" {
   }
 }
 
-
-
 ##############################
 # Récupération du VPC par défaut
 ##############################
@@ -22,3 +20,10 @@ data "aws_vpc" "default" {
   default = true
 }
 
+##############################
+# Clé SSH pour accéder à l'EC2
+##############################
+resource "aws_key_pair" "default" {
+  key_name   = var.key_name
+  public_key = file("~/.ssh/${var.key_name}.pub")
+}

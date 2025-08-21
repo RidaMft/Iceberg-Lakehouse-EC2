@@ -1,4 +1,3 @@
-
 # 🏞️ Lakehouse Project
 
 ## 🌟 Objectif
@@ -9,6 +8,9 @@ Ce projet met en place un **Lakehouse** complet pour le traitement et l’analys
 - 🧊 **Apache Iceberg** : format de table transactionnel  
 - 🔍 **Trino** : moteur SQL interactif  
 - 📊 **Apache Superset** : visualisation et reporting BI  
+- 🧠 **OpenMetadata** : gouvernance des métadonnées  
+- 🔄 **Airbyte** : ingestion de données automatisée  
+- 🧪 **dbeaver** : interface SQL web interactive  
 - ☁️ **MinIO** : stockage S3 compatible  
 - 🐳 **Docker & Docker Compose** : orchestration locale  
 - 🌐 **Terraform** : provisionnement AWS  
@@ -21,27 +23,27 @@ Ce projet met en place un **Lakehouse** complet pour le traitement et l’analys
 
 ```text
 +-------------------+       +-------------------+
-| Jupyter Notebook  | <---> |      Spark        |
+| Jupyter Notebook  | <-->  |      Spark        |
 +-------------------+       +-------------------+
-                                  |
-                                  v
-                          +-------------------+
-                          |     Iceberg       |
-                          +-------------------+
-                                  |
-                                  v
-                          +-------------------+
-                          |      Trino        |
-                          +-------------------+
-                                  |
-                                  v
-                          +-------------------+
-                          |     Superset      |
-                          +-------------------+
+                                        |
+                                        v
+                                +-------------------+
+                                |     Iceberg       |
+                                +-------------------+
+                                        |
+                                        v
+                                +-------------------+         +-------------------+
+                                |      Trino        |  <-->   |        dbeaver        |
+                                +-------------------+         +-------------------+
+                                        |
+                                        v
+                                +-------------------+         +-------------------+
+                                |     Superset      |         |   OpenMetadata    |
+                                +-------------------+         +-------------------+
 
-+-------------------+
-|      MinIO        |
-+-------------------+
++-------------------+         +-------------------+
+|      MinIO        |         |      Airbyte      |
++-------------------+         +-------------------+
 ```
 
 ---
@@ -64,7 +66,7 @@ terraform init
 terraform apply
 ```
 
-> 💡 Si tu rencontres l’erreur suivante :
+💡 Si tu rencontres l’erreur suivante :
 ```bash
 InvalidKeyPair.Duplicate: The keypair already exists
 ```
@@ -80,17 +82,29 @@ terraform import aws_key_pair.default demo
 ### 2. Lancement des services Docker
 
 ```bash
-docker-compose up -d
+docker-compose \
+        -f docker-compose.yaml \
+        -f docker-compose.superset.yaml \
+        -f docker-compose.openmetadata.yaml \
+        -f docker-compose.dbeaver.yaml \
+        up -d
 ```
 
 ---
 
 ### 3. Accès aux interfaces
 
-- 📓 **Jupyter Notebook** : http://localhost:8888  
-- 📊 **Superset Dashboard** : http://localhost:8088  
-  - **Username** : `admin`  
-  - **Password** : `admin`  
+| Interface         | URL                          | Identifiants par défaut     |
+|-------------------|------------------------------|-----------------------------|
+| 📓 Jupyter         | http://localhost:8888        | -                           |
+| 🔍 Trino UI        | http://localhost:8080        | `trino`                          |
+| 📊 Superset        | http://localhost:8088        | `admin` / `admin`           |
+| 🧪 DbEaver         | http://localhost:8881        | -                           |
+| 🧠 OpenMetadata    | http://localhost:8585        | `admin@open-metadata.org` / `admin`           |
+| 🔄 Airbyte         | http://localhost:8000        | -                           |
+| ☁️ MinIO Console   | http://localhost:9001        | `minio` / `minio123` |
+
+> Remplace `localhost` par l’IP publique de ton serveur si tu déploies à distance.
 
 ---
 
@@ -104,6 +118,7 @@ docker-compose up -d
 
 - `trino/iceberg.properties` : config Trino  
 - `infra/` : ressources Terraform  
+- `superset/` : configuration Superset (optionnelle)  
 
 ### 🔗 Connexion Superset
 
@@ -114,9 +129,9 @@ trino://trino@trino:8080/iceberg/
 ```
 
 - **Ajout dans Superset** :
-  1. Ouvre http://localhost:8088
-  2. Va dans **Data → Databases → +**
-  3. Colle l’URI ci-dessus
+  1. Ouvre http://localhost:8088  
+  2. Va dans **Data → Databases → +**  
+  3. Colle l’URI ci-dessus  
 
 ---
 
@@ -125,16 +140,15 @@ trino://trino@trino:8080/iceberg/
 - Les **Security Groups AWS** exposent uniquement les ports nécessaires.  
 - Les fichiers sensibles (`*.pem`, `*.tfvars`) sont exclus via `.gitignore`.
 
-!Architecture réseau
-
 ---
 
 ## 📈 Avantages
 
 - Environnement reproductible  
 - Scalable avec Spark & Trino  
-- Isolation via Docker  
+- Visualisation et gouvernance intégrées  
 - Compatible AWS & S3 local  
+- Intégration de données automatisée  
 
 ---
 
@@ -152,12 +166,7 @@ trino://trino@trino:8080/iceberg/
 
 ## 🛠️ Fonctionnalités à venir
 
-Voici les évolutions prévues pour enrichir l'écosystème Lakehouse :
-
-- ⚙️ **Apache Flink + Debezium** : ingestion de données en temps réel via CDC (Change Data Capture)  
-- 🧠 **OpenMetadata** : gouvernance des métadonnées et data catalog centralisé  
-- 🧬 **DBT (Data Build Tool)** : gestion des transformations SQL et documentation des modèles  
-- 🔄 **Airbyte** : intégration automatisée des données brutes depuis diverses sources (APIs, bases de données, etc.)
-
-🎯 Ces ajouts permettront d'étendre le projet vers un pipeline complet de données temps réel, gouverné et documenté.
-
+- ⚙️ **Apache Flink + Debezium** : ingestion de données en temps réel via CDC  
+- 🧬 **DBT (Data Build Tool)** : transformations SQL et documentation des modèles  
+- 🔐 **Authentification centralisée** : via OAuth2 / Keycloak  
+- 📡 **Monitoring** : intégration de Grafana + Prometheus  

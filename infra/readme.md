@@ -65,8 +65,8 @@ ssh-keygen -t rsa -b 4096 -f "$env:USERPROFILE\.ssh\demo"
 5️⃣ Déploiement
 ```bash
 terraform init
-terraform plan -var "key_name=demo" -var "docker_compose_path=../docker-compose.yml" -var "allowed_cidr=MON.IP/32"
-terraform apply -auto-approve -var "key_name=demo" -var "docker_compose_path=../docker-compose.yml" -var "allowed_cidr=MON.IP/32"
+terraform plan -var "key_name=demo" -var "allowed_cidr=MON.IP/32"
+terraform apply -auto-approve -var "key_name=demo" -var "allowed_cidr=MON.IP/32"
 ```
 
 6️⃣ Connexion à l’instance
@@ -82,5 +82,5 @@ ssh -i "$env:USERPROFILE\.ssh\demo" ec2-user@<public-ip-ec2>
 Pour libérer les ressources AWS :
 
 ```bash
-terraform destroy -auto-approve var "key_name=demo" -var "docker_compose_path=../docker-compose.yml" -var "allowed_cidr=MON.IP/32"
+terraform destroy -auto-approve var "key_name=demo" -var "allowed_cidr=MON.IP/32"
 ```

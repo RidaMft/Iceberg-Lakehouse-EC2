@@ -5,11 +5,6 @@ variable "key_name" {
   type        = string
 }
 
-variable "docker_compose_path" {
-  description = "Chemin vers le fichier docker-compose.yml"
-  type        = string
-}
-
 variable "allowed_cidr" {
   description = "Adresse IP autorisée pour SSH"
   type        = string

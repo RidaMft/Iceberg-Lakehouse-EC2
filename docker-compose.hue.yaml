@@ -1,0 +1,17 @@
+version: "3.9"
+services:  
+  hue:
+    image: gethue/hue:latest
+    container_name: hue
+    networks:
+      - iceberg_net
+    ports:
+      - "8881:8888"
+    environment:
+      - HUE_DATABASE_ENGINE=sqlite3
+      - HUE_IGNORE_PASSWORD_SCRIPT_ERRORS=True
+    volumes:
+      - ./hue/hue.ini:/usr/share/hue/desktop/conf/hue.ini
+    depends_on:
+      trino:
+        condition: service_started
