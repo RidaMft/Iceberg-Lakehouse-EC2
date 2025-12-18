@@ -1,0 +1,13 @@
+version: "3.9"
+services:
+  dbeaver:
+    image: dbeaver/cloudbeaver
+    ports: ["8881:8978"]
+    hostname: gui
+    container_name: dbeaver
+    depends_on:
+      trino:
+        condition: service_started
+    tty: true
+    networks:
+      - iceberg_net
