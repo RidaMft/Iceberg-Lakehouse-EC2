@@ -39,10 +39,14 @@ resource "aws_security_group" "ec2_sg" {
     cidr_blocks = ["0.0.0.0/0"]
   }
 
+  
+  # ===============================
+  # Iceberg REST Catalog (Nessie)
+  # ===============================
   ingress {
     description = "Iceberg REST Catalog"
-    from_port   = 8181
-    to_port     = 8181
+    from_port   = 19120
+    to_port     = 19120
     protocol    = "tcp"
     cidr_blocks = ["0.0.0.0/0"]
   }
@@ -95,16 +99,12 @@ resource "aws_security_group" "ec2_sg" {
     cidr_blocks = ["0.0.0.0/0"]
   }
 
+  
+  # ===============================
+  # DBEaver
+  # ===============================
   ingress {
-    description = "Postgres"
-    from_port   = 5432
-    to_port     = 5432
-    protocol    = "tcp"
-    cidr_blocks = ["0.0.0.0/0"]
-  }
-
-  ingress {
-    description = "Hue"
+    description = "DBEaver"
     from_port   = 8881
     to_port     = 8881
     protocol    = "tcp"

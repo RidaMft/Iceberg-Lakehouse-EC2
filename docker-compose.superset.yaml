@@ -16,3 +16,6 @@ services:
     depends_on:
       trino:
         condition: service_started
+
+volumes:
+  superset-data:

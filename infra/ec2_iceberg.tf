@@ -154,6 +154,21 @@ resource "aws_instance" "iceberg" {
     }
   }
 
+  ##############################
+  # Copier docker-compose.superset.yaml
+  ##############################
+  provisioner "file" {
+    source      = "../docker-compose.superset.yaml"
+    destination = "/home/ec2-user/docker-compose.superset.yaml"
+
+    connection {
+      type        = "ssh"
+      user        = "ec2-user"
+      private_key = file("~/.ssh/${var.key_name}")
+      host        = self.public_ip
+    }
+  }
+
   
   ##############################
   # Copier docker-compose.openmetadata.yaml
@@ -169,6 +184,24 @@ resource "aws_instance" "iceberg" {
       host        = self.public_ip
     }
   }
+
+
+  ##############################
+  # ✅ Nettoyage CRLF → LF + exécution des scripts
+  ##############################
+  provisioner "remote-exec" {
+    inline = [
+      # Convertir CRLF en LF et rendre exécutable tous les .sh
+      "sudo bash -lc 'for dir in /home/ec2-user/superset /home/ec2-user/db-scripts /home/ec2-user/spark /home/ec2-user/notebooks /home/ec2-user/trino; do if [ -d \"$dir\" ]; then find \"$dir\" -type f -name \"*.sh\" -print0 | xargs -0 -I{} sh -c \"sed -i \\\"s/\\r$//\\\" {}; chmod +x {}\"; fi; done'",
+      # Traitement explicite du superset-init.sh si présent
+      "sudo bash -lc 'if [ -f /home/ec2-user/superset/superset-init.sh ]; then sed -i \"s/\\r$//\" /home/ec2-user/superset/superset-init.sh && chmod 755 /home/ec2-user/superset/superset-init.sh; fi'",
+    ]
+    connection { 
+      type = "ssh"
+      user = "ec2-user"
+      private_key = file("~/.ssh/${var.key_name}")
+      host = self.public_ip 
+    }
 
   ##############################
   # Installation Docker & Docker Compose + lancement containers
@@ -199,7 +232,7 @@ resource "aws_instance" "iceberg" {
       # 5️⃣ Démarrage des containers
       "sudo /usr/local/bin/docker-compose build ", #--progress=plain
       # Lancement de docker-compose pour OpenMetadata
-      "sudo /usr/local/bin/docker-compose -f /home/ec2-user/docker-compose.yaml -f /home/ec2-user/docker-compose.dbeaver.yaml --env-file /home/ec2-user/.env up -d"
+      "sudo /usr/local/bin/docker-compose -f /home/ec2-user/docker-compose.yaml -f /home/ec2-user/docker-compose.dbeaver.yaml  -f /home/ec2-user/docker-compose.superset.yaml  -f /home/ec2-user/docker-compose.openmetadata.yaml --env-file /home/ec2-user/.env up -d"
     ]
 
     connection {
